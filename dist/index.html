@@ -4,10 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Custom Label XML Generator</title>
-    <script type="module" crossorigin src="/assets/index-EaZOq5KG.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B0-wABb1.css">
+    <script type="module" crossorigin src="/assets/index-BcWfxd6O.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B7wmHTBu.css">
   </head>
   <body>
     <div id="root"></div>
+    <div id="error-log" style="color: red; padding: 20px; font-family: monospace; white-space: pre-wrap; font-size: 14px;"></div>
+    <script>
+      window.onerror = function(msg, source, line, col, error) {
+        const errLog = document.getElementById('error-log');
+        if(errLog) errLog.innerText += `Error: ${msg}\nSource: ${source}:${line}:${col}\n\n`;
+      };
+      window.onunhandledrejection = function(event) {
+        const errLog = document.getElementById('error-log');
+        if(errLog) errLog.innerText += `Unhandled Rejection: ${event.reason}\n\n`;
+      };
+    </script>
   </body>
 </html>

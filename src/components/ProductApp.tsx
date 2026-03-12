@@ -21,7 +21,8 @@ export default function ProductApp() {
       // Using a free CORS proxy for client-side fetching as a fallback if needed for testing.
       // For this implementation we will try direct first.
       
-      const response = await fetch(`http://localhost:3001/proxy?url=${encodeURIComponent(feedUrl)}`);
+      const proxyBaseUrl = import.meta.env.PROD ? '/api/proxy' : 'http://localhost:3001/proxy';
+      const response = await fetch(`${proxyBaseUrl}?url=${encodeURIComponent(feedUrl)}`);
       if (!response.ok) throw new Error("HTTP connection error");
       const xmlText = await response.text();
       
