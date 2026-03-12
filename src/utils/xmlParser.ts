@@ -70,6 +70,7 @@ export const generateCustomXML = (products: Product[], customLabelValue: string)
     xml += `      <g:description>${escapeXML(p.description)}</g:description>\n`;
     xml += `      <g:price>${escapeXML(p.price)}</g:price>\n`;
     xml += `      <g:condition>${escapeXML(p.condition)}</g:condition>\n`;
+    xml += `      <g:availability>true</g:availability>\n`;
     xml += `      <g:link>${escapeXML(p.link)}</g:link>\n`;
     if (p.imageLink) {
       xml += `      <g:image_link>${escapeXML(p.imageLink)}</g:image_link>\n`;
