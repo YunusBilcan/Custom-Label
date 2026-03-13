@@ -11,6 +11,46 @@ export default function ProductApp() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [customLabelValue, setCustomLabelValue] = useState('YENI_ETIKET');
+  
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const [feedHistory, setFeedHistory] = useState<any[]>([]);
+  const proxyApiBase = import.meta.env.PROD ? '/api/feeds' : 'http://localhost:3001/api/feeds';
+
+  React.useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(proxyApiBase);
+      if (res.ok) {
+        const data = await res.json();
+        setFeedHistory(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history", err);
+    }
+  };
+
+  const handleDeleteFeed = async (id: string) => {
+    if (!window.confirm("Bu canlı linki silmek istediğinize emin misiniz?")) return;
+    try {
+      const res = await fetch(`${proxyApiBase}/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchHistory();
+        if (liveUrl && liveUrl.includes(id)) {
+          setLiveUrl(null);
+        }
+      } else {
+        alert("Silinirken hata oluştu.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Silme işlemi başarısız.");
+    }
+  };
 
   const loadFeed = async () => {
     if (!feedUrl) return;
@@ -96,28 +136,32 @@ export default function ProductApp() {
     setSelectedProductIds(newSelected);
   };
 
-  const handleDownload = () => {
-    const selectedProducts = products.filter(p => selectedProductIds.has(p.id));
-    if (selectedProducts.length === 0) return;
-
-    const xml = generateCustomXML(selectedProducts, customLabelValue);
-    
-    // Use octet-stream to force download rather than browser viewer
-    const blob = new Blob([xml], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.setAttribute('download', 'custom-feed.xml');
-    
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
+  const handleGenerateLiveLink = async () => {
+    if (selectedProductIds.size === 0) return;
+    setIsGenerating(true);
+    setLiveUrl(null);
+    try {
+      const selectedIdsArray = Array.from(selectedProductIds);
+      const res = await fetch(proxyApiBase, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedUrl,
+          selectedIds: selectedIdsArray,
+          customLabelValue
+        })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Server error');
+      
+      setLiveUrl(data.liveUrl);
+      fetchHistory(); // Refresh the list
+    } catch (err: any) {
+      alert(`Hata: ${err.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -166,14 +210,38 @@ export default function ProductApp() {
                 className="flex-1 md:w-48 px-4 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-mono"
               />
               <button 
-                onClick={handleDownload}
-                disabled={selectedProductIds.size === 0}
+                onClick={handleGenerateLiveLink}
+                disabled={selectedProductIds.size === 0 || isGenerating}
                 className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-all shadow-sm active:scale-[0.98] whitespace-nowrap"
               >
-                XML İndir ({selectedProductIds.size})
+                {isGenerating ? 'Oluşturuluyor...' : `Canlı Link Oluştur (${selectedProductIds.size})`}
               </button>
             </div>
           </div>
+
+          {liveUrl && (
+            <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-200 flex flex-col md:flex-row items-start md:items-center gap-4 justify-between animate-in fade-in">
+              <div className="flex-1 overflow-hidden min-w-0">
+                <p className="text-sm text-green-800 font-semibold mb-1 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                  Canlı XML Linkiniz Hazır!
+                </p>
+                <div className="text-xs text-green-700 font-mono bg-white px-3 py-2 rounded border border-green-100 truncate flex items-center shadow-sm">
+                  <span className="truncate w-full block select-all whitespace-nowrap overflow-x-auto no-scrollbar" title={liveUrl}>{liveUrl}</span>
+                </div>
+                <p className="text-xs text-green-600 mt-2 font-medium">Bu linkteki veriler ana XML'inizden eşzamanlı çekilir; fiyat ve stok bilgileri daima günceldir.</p>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(liveUrl);
+                  alert('Link kopyalandı!');
+                }}
+                className="px-5 py-2.5 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow active:scale-[0.98] whitespace-nowrap shrink-0"
+              >
+                Kopyala
+              </button>
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -238,6 +306,53 @@ export default function ProductApp() {
           </div>
         </div>
       )}
+
+      {/* History Section */}
+      <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
+          Oluşturulan Canlı Linkler
+        </h2>
+        {feedHistory.length === 0 ? (
+          <p className="text-sm text-gray-500">Henüz hiç canlı link oluşturmadınız.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-gray-50 text-gray-700 font-medium">
+                <tr>
+                  <th className="px-4 py-3">Tarih</th>
+                  <th className="px-4 py-3">Seçilen Sayısı</th>
+                  <th className="px-4 py-3">Custom Label</th>
+                  <th className="px-4 py-3">Canlı Link</th>
+                  <th className="px-4 py-3 text-right">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {feedHistory.map(feed => (
+                  <tr key={feed.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap">{new Date(feed.createdAt).toLocaleString('tr-TR')}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-800">{feed.selectedCount}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{feed.customLabelValue}</td>
+                    <td className="px-4 py-3 max-w-[200px] truncate">
+                      <a href={feed.liveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline" title={feed.liveUrl}>
+                        {feed.liveUrl}
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button 
+                        onClick={() => handleDeleteFeed(feed.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded transition-colors text-xs font-medium"
+                      >
+                        Sil
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

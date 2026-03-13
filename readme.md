@@ -4,3 +4,4 @@ Tüm ürünlerimin bulundugu xml link: https://fakir.com.tr/xml/googleshopping.c
 bu linkin içerisindeki <g:id> <g:title> <g:description> <g:price> <g:condition> <g:link>
 
 Bu kritierleri arayabilmeliym ve seçtiğim ürünleri ayrıca bir custom label xmli oluştursun indirebileyim
+    
