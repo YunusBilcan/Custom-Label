@@ -16,7 +16,8 @@ export default function ProductApp() {
   const [isGenerating, setIsGenerating] = useState(false);
   
   const [feedHistory, setFeedHistory] = useState<any[]>([]);
-  const proxyApiBase = import.meta.env.PROD ? '/api/feeds' : 'http://localhost:3001/api/feeds';
+  // In Vercel, serverless functions are mapped to the file names in the /api directory
+  const apiBase = import.meta.env.PROD ? '/api' : 'http://localhost:3001/api';
 
   React.useEffect(() => {
     fetchHistory();
@@ -24,7 +25,7 @@ export default function ProductApp() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(proxyApiBase);
+      const res = await fetch(`${apiBase}/feeds`);
       if (res.ok) {
         const data = await res.json();
         setFeedHistory(data);
@@ -37,7 +38,7 @@ export default function ProductApp() {
   const handleDeleteFeed = async (id: string) => {
     if (!window.confirm("Bu canlı linki silmek istediğinize emin misiniz?")) return;
     try {
-      const res = await fetch(`${proxyApiBase}/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${apiBase}/deleteFeed?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchHistory();
         if (liveUrl && liveUrl.includes(id)) {
@@ -142,7 +143,8 @@ export default function ProductApp() {
     setLiveUrl(null);
     try {
       const selectedIdsArray = Array.from(selectedProductIds);
-      const res = await fetch(proxyApiBase, {
+      
+      const res = await fetch(`${apiBase}/feeds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
